@@ -1,0 +1,7 @@
+{
+  "appId": "com.cloudformation3d.calculator",
+  "appName": "3D Calc",
+  "webDir": "www",
+  "backgroundColor": "#0d0d0d",
+  "android": { "backgroundColor": "#0d0d0d" }
+}

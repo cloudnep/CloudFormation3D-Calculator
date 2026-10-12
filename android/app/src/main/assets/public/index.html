@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d0d0d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="3D Calc">
+  <meta name="description" content="3D Print Cost Calculator for Creality Hi Combo">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <title>3D Print Calculator</title>
+  <link href="fonts/fonts.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --surface: #161616;
+      --surface2: #1e1e1e;
+      --border: #2a2a2a;
+      --accent: #00e5a0;
+      --accent-dim: rgba(0,229,160,0.12);
+      --accent-dim2: rgba(0,229,160,0.06);
+      --text: #f0f0f0;
+      --text2: #888;
+      --text3: #555;
+      --danger: #ff5757;
+      --warning: #ffb347;
+      --purple: #c084fc;
+      --mono: 'Space Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+      --safe-top: env(safe-area-inset-top, 0px);
+      --safe-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100dvh; overscroll-behavior: none; }
+    .app { max-width: 480px; margin: 0 auto; padding: calc(var(--safe-top) + 16px) 16px calc(var(--safe-bottom) + 24px); }
+
+    /* Header */
+    .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; padding-top: 8px; }
+    .header-left h1 { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+    .header-left p { font-size: 12px; color: var(--text3); margin-top: 2px; font-family: var(--mono); }
+    .printer-badge { background: var(--accent-dim); border: 1px solid rgba(0,229,160,0.2); border-radius: 8px; padding: 6px 10px; font-size: 10px; font-family: var(--mono); color: var(--accent); text-align: right; line-height: 1.5; }
+
+    /* Tabs */
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; }
+    .tab { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; cursor: pointer; transition: all 0.2s; text-align: left; }
+    .tab.active { background: var(--accent-dim); border-color: rgba(0,229,160,0.35); }
+    .tab-name { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--text2); }
+    .tab.active .tab-name { color: var(--accent); }
+    .tab-price { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .tab.active .tab-price { color: rgba(0,229,160,0.6); }
+
+    /* Section */
+    .section { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 16px; margin-bottom: 12px; }
+    .section-label { font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 14px; }
+    .fields { display: flex; flex-direction: column; gap: 12px; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    .field label { font-size: 12px; color: var(--text2); font-family: var(--mono); }
+    .input-wrap { position: relative; }
+    .input-wrap input { width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; padding: 12px 46px 12px 14px; font-size: 16px; font-family: var(--mono); color: var(--text); outline: none; transition: border-color 0.15s; -webkit-appearance: none; }
+    .input-wrap input:focus { border-color: var(--accent); }
+    .input-unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 11px; font-family: var(--mono); color: var(--text3); pointer-events: none; }
+    .input-wrap.peso input { padding-left: 28px; }
+    .input-wrap .peso-sign { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 14px; font-family: var(--mono); color: var(--text3); pointer-events: none; }
+
+    /* Slider */
+    .markup-wrap { margin-top: 4px; }
+    .markup-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .markup-header span:first-child { font-size: 12px; color: var(--text2); font-family: var(--mono); }
+    .markup-val { font-family: var(--mono); font-size: 18px; font-weight: 700; color: var(--accent); }
+    input[type=range] { -webkit-appearance: none; appearance: none; width: 100%; height: 4px; background: var(--border); border-radius: 2px; outline: none; }
+    input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; background: var(--accent); border-radius: 50%; cursor: pointer; box-shadow: 0 0 0 4px var(--accent-dim2); }
+    input[type=range]::-moz-range-thumb { width: 22px; height: 22px; background: var(--accent); border-radius: 50%; cursor: pointer; border: none; }
+
+    .power-note { font-size: 11px; color: var(--text3); margin-top: 10px; line-height: 1.5; font-family: var(--mono); }
+    .power-note span { color: var(--warning); }
+
+    /* Results */
+    .results-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .metric { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px; }
+    .metric.big { grid-column: 1 / -1; background: var(--accent-dim); border-color: rgba(0,229,160,0.25); }
+    .metric-label { font-size: 10px; font-family: var(--mono); color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 6px; }
+    .metric.big .metric-label { color: rgba(0,229,160,0.5); }
+    .metric-value { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--text); }
+    .metric.big .metric-value { font-size: 32px; color: var(--accent); }
+    .metric-sub { font-size: 11px; color: var(--text3); margin-top: 3px; font-family: var(--mono); }
+    .metric.big .metric-sub { color: rgba(0,229,160,0.45); }
+
+    /* Breakdown */
+    .breakdown { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 12px; }
+    .breakdown-header { padding: 14px 16px 10px; font-family: var(--mono); font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1px solid var(--border); }
+    .breakdown-row { display: flex; justify-content: space-between; align-items: center; padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 13px; }
+    .breakdown-row:last-child { border-bottom: none; }
+    .breakdown-row.total { background: var(--surface2); padding: 14px 16px; }
+    .row-icon { font-size: 14px; margin-right: 8px; }
+    .row-label { color: var(--text2); display: flex; align-items: center; }
+    .row-val { font-family: var(--mono); color: var(--text); font-size: 13px; }
+    .breakdown-row.total .row-label { color: var(--text); font-weight: 500; font-size: 14px; }
+    .breakdown-row.total .row-val { color: var(--accent); font-size: 15px; font-weight: 700; }
+
+    /* Cost bar */
+    .cpg-bar { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+    .cpg-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
+    .cpg-label { font-size: 11px; font-family: var(--mono); color: var(--text3); }
+    .cpg-val { font-size: 13px; font-family: var(--mono); color: var(--accent); font-weight: 700; }
+    .bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+    .bar-fill-wrap { display: flex; height: 100%; }
+    .bar-fill { height: 100%; border-radius: 0; transition: width 0.3s ease; }
+    .bar-filament { background: var(--accent); }
+    .bar-elec { background: var(--warning); }
+    .bar-maint { background: var(--purple); }
+    .bar-legend { display: flex; gap: 14px; margin-top: 8px; flex-wrap: wrap; }
+    .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; font-family: var(--mono); color: var(--text3); }
+    .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* Receipt button */
+    .receipt-btn { width: 100%; background: rgba(30,144,255,0.12); border: 1px solid rgba(30,144,255,0.35); border-radius: 14px; padding: 16px; font-family: var(--mono); font-size: 14px; font-weight: 700; color: #1e90ff; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all 0.2s; margin-bottom: 12px; }
+    .receipt-btn:active { transform: scale(0.98); background: rgba(30,144,255,0.2); }
+
+    /* Receipt modal overlay */
+    .receipt-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.88); z-index: 100; overflow-y: auto; padding: 20px 16px calc(var(--safe-bottom) + 20px); }
+    .receipt-overlay.open { display: flex; flex-direction: column; align-items: center; }
+
+    /* Receipt paper — Cloud Formation 3D brand */
+    .receipt-paper { background: #ffffff; color: #111111; width: 100%; max-width: 340px; border-radius: 6px 6px 0 0; font-family: 'DM Sans', sans-serif; padding: 0; position: relative; box-shadow: 0 24px 64px rgba(0,0,0,0.6); }
+
+    /* Header: white bg, blue cloud SVG, black bold name */
+    .receipt-top { background: #ffffff; padding: 22px 20px 14px; border-radius: 6px 6px 0 0; text-align: center; border-bottom: 3px solid #1e90ff; position: relative; overflow: hidden; }
+    .receipt-top .cloud-bg { position: absolute; top: -10px; right: -20px; opacity: 0.07; pointer-events: none; }
+    .receipt-top .brand-logo { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 6px; }
+    .receipt-top .brand-icon { width: 44px; height: 44px; }
+    .receipt-top .shop-name { font-family: 'DM Sans', sans-serif; font-size: 20px; font-weight: 700; color: #111111; letter-spacing: -0.3px; line-height: 1; }
+    .receipt-top .shop-name span { color: #1e90ff; }
+    .receipt-top .shop-tagline { font-size: 9px; font-weight: 600; color: #1e90ff; letter-spacing: 0.18em; text-transform: uppercase; margin-top: 5px; }
+    .receipt-top .shop-sub { font-size: 10px; color: #888; margin-top: 4px; }
+
+    /* Blue accent stripe */
+    .receipt-stripe { height: 4px; background: linear-gradient(90deg, #1e90ff 0%, #56b4ff 50%, #1e90ff 100%); }
+
+    .receipt-body { padding: 16px 20px; background: #ffffff; }
+    .receipt-meta { display: flex; justify-content: space-between; font-size: 10px; color: #888; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px dashed #ddd; font-family: var(--mono); }
+    .receipt-receipt-no { font-size: 10px; color: #aaa; margin-bottom: 10px; text-align: center; font-family: var(--mono); }
+
+    .r-line { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 6px; align-items: center; }
+    .r-line .r-label { color: #333; flex: 1; font-weight: 500; }
+    .r-line .r-amt { color: #111; font-weight: 700; text-align: right; font-family: var(--mono); }
+    .r-divider { border: none; border-top: 1px dashed #ddd; margin: 12px 0; }
+
+    /* Total box: sky blue */
+    .r-total-box { background: #1e90ff; margin: 0; padding: 16px 20px; }
+    .r-total-line { display: flex; justify-content: space-between; align-items: center; }
+    .r-total-line .r-t-label { font-size: 11px; color: rgba(255,255,255,0.75); letter-spacing: 0.1em; font-weight: 600; text-transform: uppercase; }
+    .r-total-line .r-t-val { font-size: 26px; font-weight: 700; color: #ffffff; font-family: var(--mono); }
+
+    .r-footer { padding: 14px 20px 0; text-align: center; background: #ffffff; }
+    .r-footer p { font-size: 10px; color: #aaa; line-height: 1.7; }
+    .r-footer .r-barcode { margin: 12px auto 0; display: flex; justify-content: center; gap: 1px; height: 28px; }
+    .r-footer .r-barcode span { background: #222; display: inline-block; }
+    .r-footer-brand { font-size: 9px; color: #1e90ff; margin-top: 6px; padding-bottom: 16px; font-weight: 600; letter-spacing: 0.05em; }
+
+    /* Zigzag bottom — white teeth on blue */
+    .receipt-zigzag { width: 100%; max-width: 340px; height: 14px; background: linear-gradient(-45deg, #1e90ff 25%, transparent 25%) 0 0, linear-gradient(45deg, #1e90ff 25%, transparent 25%) 0 0; background-size: 14px 14px; background-color: transparent; }
+
+    /* Receipt controls */
+    .receipt-controls { width: 100%; max-width: 340px; display: flex; gap: 10px; margin-top: 16px; }
+    .receipt-controls button { flex: 1; padding: 13px; border-radius: 10px; font-family: var(--mono); font-size: 12px; font-weight: 700; cursor: pointer; border: none; transition: all 0.2s; }
+    .btn-close { background: #2a2a2a; color: #888; }
+    .btn-close:active { background: #333; }
+    .btn-print { background: #1e90ff; color: #ffffff; }
+    .btn-print:active { transform: scale(0.97); }
+
+    /* Customer name input in receipt section */
+    .customer-row { display: flex; gap: 10px; align-items: flex-end; }
+    .customer-row .field { flex: 1; }
+    .input-wrap input[type=text] { font-family: var(--sans); font-size: 15px; padding: 12px 14px; }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <div class="header-left">
+      <h1>3D PRINT CALC</h1>
+      <p>// cost estimator</p>
+    </div>
+    <div class="printer-badge">Creality<br>Hi Combo</div>
+  </div>
+
+  <!-- Filament -->
+  <div class="tabs">
+    <div class="tab active" id="tab-pla" onclick="setFilament('pla')">
+      <div class="tab-name">PLA+</div>
+      <div class="tab-price">₱800 / kg</div>
+    </div>
+    <div class="tab" id="tab-petg" onclick="setFilament('petg')">
+      <div class="tab-name">PETG</div>
+      <div class="tab-price">₱700 / kg</div>
+    </div>
+  </div>
+
+  <!-- Print Details -->
+  <div class="section">
+    <div class="section-label">Print details</div>
+    <div class="fields">
+      <div class="field-row">
+        <div class="field">
+          <label>Filament used</label>
+          <div class="input-wrap">
+            <input type="number" id="filament_g" value="50" min="0.1" step="0.1" inputmode="decimal" oninput="calc()">
+            <span class="input-unit">g</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Print time</label>
+          <div class="input-wrap">
+            <input type="number" id="print_hours" value="180" min="1" step="1" inputmode="numeric" oninput="calc()">
+            <span class="input-unit">min</span>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Item / print name</label>
+        <div class="input-wrap">
+          <input type="text" id="print_name" value="" placeholder="e.g. Benchy, phone stand..." style="font-family:var(--sans);font-size:15px;padding:12px 14px;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Power Settings -->
+  <div class="section">
+    <div class="section-label">Power settings</div>
+    <div class="fields">
+      <div class="field-row">
+        <div class="field">
+          <label>Avg. print power</label>
+          <div class="input-wrap">
+            <input type="number" id="print_watts" value="200" min="1" inputmode="numeric" oninput="calc()">
+            <span class="input-unit">W</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Warmup spike</label>
+          <div class="input-wrap">
+            <input type="number" id="warmup_watts" value="1200" min="0" inputmode="numeric" oninput="calc()">
+            <span class="input-unit">W</span>
+          </div>
+        </div>
+      </div>
+      <div class="field" style="max-width:48%">
+        <label>Warmup duration</label>
+        <div class="input-wrap">
+          <input type="number" id="warmup_min" value="2" min="0" step="0.5" inputmode="decimal" oninput="calc()">
+          <span class="input-unit">min</span>
+        </div>
+      </div>
+      <p class="power-note">⚡ Hi Combo spikes <span>~1200W</span> during bed preheat, then settles to ~150–250W while printing.</p>
+    </div>
+  </div>
+
+  <!-- Maintenance Fee -->
+  <div class="section">
+    <div class="section-label">Maintenance fee</div>
+    <div class="fields">
+      <div class="field-row">
+        <div class="field">
+          <label>Fee per hour (₱)</label>
+          <div class="input-wrap peso">
+            <span class="peso-sign">₱</span>
+            <input type="number" id="maint_per_hr" value="20" min="0" step="1" inputmode="numeric" oninput="calc()">
+          </div>
+        </div>
+        <div class="field">
+          <label>Calculated fee</label>
+          <div class="input-wrap">
+            <input type="text" id="maint_display" readonly style="background:var(--surface);color:var(--purple);cursor:default;">
+            <span class="input-unit">₱</span>
+          </div>
+        </div>
+      </div>
+      <p class="power-note" style="color:rgba(192,132,252,0.5)">🔧 Covers nozzle wear, bed replacement, lubrication, and general upkeep. ₱20/hr is a reasonable starting rate.</p>
+    </div>
+  </div>
+
+  <!-- Markup -->
+  <div class="section">
+    <div class="section-label">Profit markup</div>
+    <div class="markup-wrap">
+      <div class="markup-header">
+        <span>Add markup</span>
+        <span class="markup-val" id="markup-display">30%</span>
+      </div>
+      <input type="range" id="markup" min="0" max="200" value="30" step="1" oninput="updateMarkup()">
+    </div>
+  </div>
+
+  <!-- Customer info (for receipt) -->
+  <div class="section">
+    <div class="section-label">Customer info</div>
+    <div class="fields">
+      <div class="field">
+        <label>Customer name (optional)</label>
+        <div class="input-wrap">
+          <input type="text" id="customer_name" placeholder="e.g. Juan dela Cruz" style="font-family:var(--sans);font-size:15px;padding:12px 14px;">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cost per gram bar -->
+  <div class="cpg-bar">
+    <div class="cpg-header">
+      <span class="cpg-label">Cost breakdown by category</span>
+      <span class="cpg-val" id="cpg-val">₱0.00/g</span>
+    </div>
+    <div class="bar-track">
+      <div class="bar-fill-wrap">
+        <div class="bar-fill bar-filament" id="bar-filament" style="width:70%"></div>
+        <div class="bar-fill bar-elec" id="bar-elec" style="width:15%"></div>
+        <div class="bar-fill bar-maint" id="bar-maint" style="width:15%"></div>
+      </div>
+    </div>
+    <div class="bar-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--accent)"></div>Filament</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--warning)"></div>Electricity</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--purple)"></div>Maintenance</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-grid">
+    <div class="metric">
+      <div class="metric-label">Filament</div>
+      <div class="metric-value" id="r-filament">₱0.00</div>
+      <div class="metric-sub" id="r-filament-sub">0g</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Electricity</div>
+      <div class="metric-value" id="r-elec">₱0.00</div>
+      <div class="metric-sub" id="r-elec-sub">0 kWh</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Maintenance</div>
+      <div class="metric-value" id="r-maint" style="color:var(--purple)">₱0.00</div>
+      <div class="metric-sub" id="r-maint-sub">0 hrs</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Profit</div>
+      <div class="metric-value" id="r-profit">₱0.00</div>
+      <div class="metric-sub" id="r-profit-sub">0% markup</div>
+    </div>
+    <div class="metric big">
+      <div class="metric-label">Selling price</div>
+      <div class="metric-value" id="r-sell">₱0.00</div>
+      <div class="metric-sub" id="r-sell-sub">includes markup</div>
+    </div>
+  </div>
+
+  <!-- Full breakdown -->
+  <div class="breakdown">
+    <div class="breakdown-header">Full breakdown</div>
+    <div class="breakdown-row">
+      <span class="row-label"><span class="row-icon">🧵</span>Filament cost</span>
+      <span class="row-val" id="b-filament">₱0.00</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="row-label"><span class="row-icon">🔥</span>Bed preheat</span>
+      <span class="row-val" id="b-preheat">₱0.00</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="row-label"><span class="row-icon">⏱</span>Printing power</span>
+      <span class="row-val" id="b-print">₱0.00</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="row-label"><span class="row-icon">🔧</span>Maintenance fee</span>
+      <span class="row-val" id="b-maint" style="color:var(--purple)">₱0.00</span>
+    </div>
+    <div class="breakdown-row">
+      <span class="row-label"><span class="row-icon">📊</span>Markup amount</span>
+      <span class="row-val" id="b-markup">₱0.00</span>
+    </div>
+    <div class="breakdown-row total">
+      <span class="row-label">Total selling price</span>
+      <span class="row-val" id="b-total">₱0.00</span>
+    </div>
+  </div>
+
+  <!-- Generate Receipt Button -->
+  <button class="receipt-btn" onclick="openReceipt()">
+    🧾 Generate Receipt
+  </button>
+
+</div>
+
+<!-- Receipt Modal -->
+<div class="receipt-overlay" id="receipt-overlay" onclick="handleOverlayClick(event)">
+  <div class="receipt-paper" id="receipt-paper">
+
+    <!-- Header -->
+    <div class="receipt-top">
+      <!-- Decorative cloud bg -->
+      <svg class="cloud-bg" width="180" height="120" viewBox="0 0 180 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M160 80 C160 60 145 45 125 45 C122 30 110 18 94 18 C78 18 65 30 62 45 C42 47 26 63 26 83 C26 103 42 118 62 118 L155 118 C168 118 178 108 178 95 C178 87 170 80 160 80Z" fill="#1e90ff"/>
+      </svg>
+      <div class="brand-logo">
+        <!-- Cloud Formation 3D icon -->
+        <svg class="brand-icon" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="22" cy="22" r="22" fill="#f0f8ff"/>
+          <path d="M34 26 C34 21 30 17 25.5 17 C24.8 13.5 21.8 11 18 11 C14.2 11 11.2 13.5 10.5 17 C6.5 17.5 3.5 21 3.5 25 C3.5 29 6.5 32 10.5 32 L33 32 C35.8 32 38 29.8 38 27 C38 26.3 37.6 25.6 37 25.2" stroke="#1e90ff" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+          <rect x="17" y="20" width="10" height="10" rx="1.5" stroke="#1e90ff" stroke-width="1.8" fill="none"/>
+          <path d="M19 23 L22 26 L25 23" stroke="#1e90ff" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+        </svg>
+        <div>
+          <div class="shop-name">CLOUD <span>FORMATION</span> 3D</div>
+        </div>
+      </div>
+      <div class="shop-tagline">Bring Your Ideas to Life</div>
+      <div class="shop-sub">Mabalacat, Pampanga · cloudformation3d</div>
+    </div>
+    <div class="receipt-stripe"></div>
+
+    <div class="receipt-body">
+      <div class="receipt-receipt-no" id="r-receipt-no">Receipt #000001</div>
+      <div class="receipt-meta">
+        <span id="r-date">Jan 1, 2025</span>
+        <span id="r-time">12:00 PM</span>
+      </div>
+
+      <div class="r-line" style="padding: 10px 0;">
+        <span class="r-label" style="font-size:15px; font-weight:700; color:#111;" id="r-item-name">Custom 3D Print</span>
+        <span class="r-amt" style="font-size:15px; color:#1e90ff;" id="rr-total-inline">₱0.00</span>
+      </div>
+
+      <hr class="r-divider">
+    </div>
+
+    <div class="r-total-box">
+      <div class="r-total-line">
+        <span class="r-t-label">TOTAL</span>
+        <span class="r-t-val" id="rr-total">₱0.00</span>
+      </div>
+    </div>
+
+    <div class="r-footer">
+      <p>Thank you for choosing Cloud Formation 3D!<br>No refunds once printing has started.<br>facebook.com/cloudformation3d</p>
+      <div class="r-barcode" id="r-barcode"></div>
+      <div class="r-footer-brand">☁ CLOUD FORMATION 3D</div>
+    </div>
+  </div>
+  <div class="receipt-zigzag"></div>
+
+  <div class="receipt-controls">
+    <button class="btn-close" onclick="closeReceipt()">✕ Close</button>
+    <button class="btn-print" onclick="printReceipt()">⬇ Save / Share</button>
+  </div>
+</div>
+
+<script src="vendor/html2canvas.min.js"></script>
+<script>
+  let filamentCostPerKg = 800;
+  let filamentType = 'PLA+';
+  let lastCalc = {};
+  let receiptCount = parseInt(localStorage.getItem('rcpt_count') || '0') + 1;
+
+  function setFilament(type) {
+    filamentCostPerKg = type === 'pla' ? 800 : 700;
+    filamentType = type === 'pla' ? 'PLA+' : 'PETG';
+    document.getElementById('tab-pla').classList.toggle('active', type === 'pla');
+    document.getElementById('tab-petg').classList.toggle('active', type === 'petg');
+    calc();
+  }
+
+  function updateMarkup() {
+    document.getElementById('markup-display').textContent = document.getElementById('markup').value + '%';
+    calc();
+  }
+
+  function fv(id) { return parseFloat(document.getElementById(id).value) || 0; }
+  function peso(n) { return '₱' + n.toFixed(2); }
+
+  function calc() {
+    const grams = fv('filament_g');
+    const hours = fv('print_hours') / 60;
+    const printW = fv('print_watts');
+    const warmupW = fv('warmup_watts');
+    const warmupMin = fv('warmup_min');
+    const markup = fv('markup');
+    const maintPerHr = fv('maint_per_hr');
+    const powerRate = 11;
+
+    const filamentCost = (grams / 1000) * filamentCostPerKg;
+    const warmupKWh = (warmupW * (warmupMin / 60)) / 1000;
+    const printKWh = (printW * hours) / 1000;
+    const totalKWh = warmupKWh + printKWh;
+    const electricityCost = totalKWh * powerRate;
+    const preheatCost = warmupKWh * powerRate;
+    const printPowerCost = printKWh * powerRate;
+    const maintCost = maintPerHr * hours;
+    const baseCost = filamentCost + electricityCost + maintCost;
+    const markupAmt = baseCost * (markup / 100);
+    const sellingPrice = baseCost + markupAmt;
+    const costPerGram = grams > 0 ? baseCost / grams : 0;
+
+    document.getElementById('maint_display').value = maintCost.toFixed(2);
+
+    // Bar
+    const total = filamentCost + electricityCost + maintCost;
+    const fPct = total > 0 ? (filamentCost / total) * 100 : 70;
+    const ePct = total > 0 ? (electricityCost / total) * 100 : 15;
+    const mPct = total > 0 ? (maintCost / total) * 100 : 15;
+    document.getElementById('bar-filament').style.width = fPct.toFixed(1) + '%';
+    document.getElementById('bar-elec').style.width = ePct.toFixed(1) + '%';
+    document.getElementById('bar-maint').style.width = mPct.toFixed(1) + '%';
+    document.getElementById('cpg-val').textContent = '₱' + costPerGram.toFixed(3) + '/g';
+
+    // Metrics
+    document.getElementById('r-filament').textContent = peso(filamentCost);
+    document.getElementById('r-filament-sub').textContent = grams + 'g × ₱' + (filamentCostPerKg/1000).toFixed(3) + '/g';
+    document.getElementById('r-elec').textContent = peso(electricityCost);
+    document.getElementById('r-elec-sub').textContent = totalKWh.toFixed(3) + ' kWh';
+    document.getElementById('r-maint').textContent = peso(maintCost);
+    document.getElementById('r-maint-sub').textContent = hours.toFixed(2) + ' hrs × ₱' + maintPerHr + '/hr';
+    document.getElementById('r-profit').textContent = peso(markupAmt);
+    document.getElementById('r-profit-sub').textContent = markup + '% of base';
+    document.getElementById('r-sell').textContent = peso(sellingPrice);
+    document.getElementById('r-sell-sub').textContent = '₱' + baseCost.toFixed(2) + ' + ₱' + markupAmt.toFixed(2) + ' markup';
+
+    // Breakdown
+    document.getElementById('b-filament').textContent = peso(filamentCost);
+    document.getElementById('b-preheat').textContent = peso(preheatCost);
+    document.getElementById('b-print').textContent = peso(printPowerCost);
+    document.getElementById('b-maint').textContent = peso(maintCost);
+    document.getElementById('b-markup').textContent = peso(markupAmt);
+    document.getElementById('b-total').textContent = peso(sellingPrice);
+
+    lastCalc = { grams, hours, printW, warmupMin, warmupKWh, printKWh, totalKWh,
+      filamentCost, electricityCost, preheatCost, printPowerCost,
+      maintCost, baseCost, markupAmt, sellingPrice, markup, maintPerHr };
+  }
+
+  function openReceipt() {
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('en-PH', { year:'numeric', month:'short', day:'numeric' });
+    const timeStr = now.toLocaleTimeString('en-PH', { hour:'2-digit', minute:'2-digit' });
+    const customer = document.getElementById('customer_name').value.trim() || 'Walk-in Customer';
+    const printName = document.getElementById('print_name').value.trim() || 'Custom 3D Print';
+    const mins = fv('print_hours');
+
+    document.getElementById('r-receipt-no').textContent = 'Receipt #' + String(receiptCount).padStart(6, '0');
+    document.getElementById('r-date').textContent = dateStr;
+    document.getElementById('r-time').textContent = timeStr;
+    document.getElementById('r-item-name').textContent = printName;
+    document.getElementById('rr-total-inline').textContent = peso(lastCalc.sellingPrice || 0);
+    document.getElementById('rr-total').textContent = peso(lastCalc.sellingPrice || 0);
+
+    // Generate barcode-like decoration
+    const bc = document.getElementById('r-barcode');
+    bc.innerHTML = '';
+    const widths = [2,1,3,1,2,1,1,3,2,1,3,2,1,1,2,3,1,2,1,3,2,1,1,2,3,1,2,1,3,1];
+    widths.forEach(w => {
+      const bar = document.createElement('span');
+      bar.style.width = w + 'px';
+      bar.style.height = (16 + Math.random() * 12) + 'px';
+      bar.style.display = 'inline-block';
+      bar.style.background = '#1a1a1a';
+      bar.style.marginRight = '1px';
+      bc.appendChild(bar);
+    });
+
+    document.getElementById('receipt-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeReceipt() {
+    document.getElementById('receipt-overlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('receipt-overlay')) closeReceipt();
+  }
+
+  async function printReceipt() {
+    receiptCount++;
+    localStorage.setItem('rcpt_count', receiptCount);
+
+    const cap = window.Capacitor;
+    const isNative = cap && cap.isNativePlatform && cap.isNativePlatform();
+    if (!isNative) { window.print(); return; }   // normal browser: keep original behaviour
+
+    const btn = document.querySelector('.btn-print');
+    const label = btn.textContent;
+    btn.textContent = 'Saving...';
+    try {
+      const paper = document.getElementById('receipt-paper');
+      const canvas = await html2canvas(paper, {
+        scale: 3, backgroundColor: '#ffffff', useCORS: true,
+        scrollX: 0, scrollY: -window.scrollY
+      });
+      const base64 = canvas.toDataURL('image/png').split(',')[1];
+      const name = 'receipt-' + String(receiptCount - 1).padStart(6, '0') + '.png';
+      const { Filesystem, Share } = cap.Plugins;
+      const saved = await Filesystem.writeFile({ path: name, data: base64, directory: 'CACHE' });
+      await Share.share({ title: 'Cloud Formation 3D Receipt', files: [saved.uri] });
+    } catch (e) {
+      if (!String(e && e.message || e).toLowerCase().includes('cancel')) alert('Could not save receipt: ' + (e.message || e));
+    } finally {
+      btn.textContent = label;
+    }
+  }
+
+  calc();
+
+  if ('serviceWorker' in navigator && !(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform())) {
+    navigator.serviceWorker.register('sw.js');
+  }
+</script>
+
+<style media="print">
+  body * { visibility: hidden; }
+  .receipt-paper, .receipt-paper * { visibility: visible; }
+  .receipt-paper { position: fixed; top: 0; left: 50%; transform: translateX(-50%); box-shadow: none; width: 340px; }
+  .receipt-overlay { display: block !important; background: white; }
+  .receipt-controls, .receipt-zigzag { display: none; }
+  .receipt-stripe { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .receipt-top { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .r-total-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+</style>
+</body>
+</html>
